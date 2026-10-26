@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trendy | متجر الهدوم التجريبي</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body { background-color: #f8f9fa; color: #333; }
+  
+  /* الهيدر */
+  header {
+    background: #111; color: #fff; padding: 15px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 22px; letter-spacing: 1px; }
+  .cart-icon { font-size: 18px; cursor: pointer; background: #e63946; padding: 8px 15px; border-radius: 20px; font-weight: bold; }
+  
+  /* شبكة المنتجات */
+  .products {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px; padding: 20px; max-width: 1000px; margin: auto;
+  }
+  .product-card {
+    background: #fff; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s;
+  }
+  .product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+  .product-card img { width: 100%; height: 200px; object-fit: cover; }
+  .product-info { padding: 12px; text-align: center; }
+  .product-info h3 { font-size: 16px; margin-bottom: 5px; }
+  .product-info p { color: #e63946; font-weight: bold; margin-bottom: 10px; }
+  .add-btn {
+    width: 100%; padding: 10px; background: #111; color: #fff;
+    border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+  }
+  .add-btn:hover { background: #333; }
+
+  /* السلة (مخفية في الأول) */
+  .cart-modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center;
+  }
+  .cart-content {
+    background: #fff; width: 90%; max-width: 400px; padding: 20px;
+    border-radius: 15px; max-height: 80vh; overflow-y: auto;
+  }
+  .cart-content h2 { margin-bottom: 15px; text-align: center; }
+  .cart-item { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+  .total { font-size: 18px; font-weight: bold; text-align: left; margin: 15px 0; color: #111; }
+  .checkout-btn { width: 100%; padding: 12px; background: #e63946; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  .close-btn { width: 100%; padding: 10px; background: #ccc; border: none; border-radius: 8px; margin-top: 10px; cursor: pointer; font-weight: bold; }
+
+  /* نموذج الطلب */
+  .checkout-form { display: none; }
+  .checkout-form input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Trendy 🛍️</h1>
+  <div class="cart-icon" onclick="openCart()">السلة 🛒 (<span id="cart-count">0</span>)</div>
+</header>
+
+<div class="products" id="products-list">
+  <!-- المنتجات هتظهر هنا بالجافاسكريبت -->
+</div>
+
+<!-- شاشة السلة -->
+<div class="cart-modal" id="cart-modal">
+  <div class="cart-content">
+    <h2>سلة المشتريات</h2>
+    <div id="cart-items"></div>
+    <div class="total" id="cart-total">الإجمالي: 0 ج.م</div>
+    
+    <button class="checkout-btn" onclick="showCheckout()">إتمام الطلب</button>
+    <button class="close-btn" onclick="closeCart()">إغلاق</button>
+
+    <!-- فورم الطلب -->
+    <div class="checkout-form" id="checkout-form">
+      <h3 style="margin-bottom:15px; text-align:center;">بيانات الشحن</h3>
+      <input type="text" id="c-name" placeholder="الاسم بالكامل">
+      <input type="tel" id="c-phone" placeholder="رقم الموبايل">
+      <input type="text" id="c-address" placeholder="العنوان بالتفصيل">
+      <button class="checkout-btn" onclick="submitOrder()" style="background:#28a745;">تأكيد الطلب</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// بيانات المنتجات (نسخة تجريبية)
+const products = [
+  { id: 1, name: "تيشيرت أوفر سايز", price: 350, img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80" },
+  { id: 2, name: "جاكيت جينز", price: 750, img: "https://images.unsplash.com/photo-1551537482-f2075a1d41f2?w=500&q=80" },
+  { id: 3, name: "هودي كاجوال", price: 500, img: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80" },
+  { id: 4, name: "بنطلون كارغو", price: 450, img: "https://images.unsplash.com/photo-1517438476312-10d79c077509?w=500&q=80" }
+];
+
+let cart = [];
+
+// عرض المنتجات
+const list = document.getElementById('products-list');
+products.forEach(p => {
+  list.innerHTML += `
+    <div class="product-card">
+      <img src="${p.img}" alt="${p.name}">
+      <div class="product-info">
+        <h3>${p.name}</h3>
+        <p>${p.price} ج.م</p>
+        <button class="add-btn" onclick="addToCart(${p.id})">أضف للسلة</button>
+      </div>
+    </div>
+  `;
+});
+
+// إضافة للسلة
+function addToCart(id) {
+  const item = cart.find(c => c.id === id);
+  if(item) { item.qty++; } 
+  else { cart.push({ ...products.find(p => p.id === id), qty: 1 }); }
+  updateCart();
+}
+
+// تحديث السلة
+function updateCart() {
+  document.getElementById('cart-count').innerText = cart.reduce((acc, c) => acc + c.qty, 0);
+  const itemsDiv = document.getElementById('cart-items');
+  itemsDiv.innerHTML = '';
+  let total = 0;
+  
+  cart.forEach((c, i) => {
+    total += c.price * c.qty;
+    itemsDiv.innerHTML += `
+      <div class="cart-item">
+        <span>${c.name} (x${c.qty})</span>
+        <span>${c.price * c.qty} ج.م</span>
+      </div>
+    `;
+  });
+  document.getElementById('cart-total').innerText = `الإجمالي: ${total} ج.م`;
+}
+
+// فتح وقفل السلة
+function openCart() { document.getElementById('cart-modal').style.display = 'flex'; }
+function closeCart() { document.getElementById('cart-modal').style.display = 'none'; }
+
+// إظهار فورم الطلب
+function showCheckout() {
+  if(cart.length === 0) { alert("السلة فاضية! ضيف منتجات الأول."); return; }
+  document.getElementById('checkout-form').style.display = 'block';
+}
+
+// تأكيد الطلب
+function submitOrder() {
+  const name = document.getElementById('c-name').value;
+  const phone = document.getElementById('c-phone').value;
+  const address = document.getElementById('c-address').value;
+
+  if(!name || !phone || !address) { alert("يا ريت تكمل كل البيانات!"); return; }
+
+  alert(`🎉 تم استلام طلبك يا ${name}!\nهنكلمك على ${phone} لتأكيد الأوردر.`);
+  cart = []; // تفريغ السلة
+  updateCart();
+  closeCart();
+  document.getElementById('checkout-form').style.display = 'none';
+}
+</script>
+</body>
+</html>
